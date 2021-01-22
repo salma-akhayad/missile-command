@@ -10,11 +10,12 @@ let gun = null;
 
 function setup() {
     createCanvas(400, 400);
+    angleMode(DEGREES);
 
-    player = createSprite(width / 2, height / 2, 20, 20);
+    player = createSprite(width / 2, height - 100, 20, 20);
     player.draw = DrawPlayer;
 
-    gun = createSprite(width / 2, height - 50, 25, 25)
+    gun = createSprite(width / 2, height - 40, 20, 20)
 
 }
 
@@ -29,11 +30,31 @@ function draw() {
 }
 
 function CreateFriendlyMissile() {
-    let startPosition = gun.position;
-    let endPosition = player.position;
-    let direction = p5; Vector.sub(endPosition, startPosition)
+    let start = gun.position.copy();
+    let end = player.position.copy();
 
-    let missile = createSprite(startPosition.x, startPosition.y, 5, 5);
+    let direction = player.position.copy();
+    direction.sub(start);
+
+    let directionAngle = direction.heading();
+
+    let missile = createSprite(start.x, start.y, 5, 5);
+    missile.setSpeed(5, directionAngle);
+    missile["goal"] = end;
+    missile.draw = DrawFriendlyMissile;
+}
+
+function DrawFriendlyMissile() {
+    circle(0, 0, this.width);
+
+    let currentPosition = this.position;
+    let goalPosition = this.goal;
+    let distance = currentPosition.dist(goalPosition);
+
+    if (distance < 5) {
+        CreateExplosion(currentPosition.x, currentPosition.y);
+        this.remove();
+    }
 }
 
 function RemoveDeadExplosions() {
@@ -47,8 +68,9 @@ function RemoveDeadExplosions() {
 function Shoot() {
     shootTimer += deltaTime;
     if (keyIsDown(32) && shootTimer >= 1000 / shotsPerSecond) {
-        CreateExplosion(player.position.x, player.position.y);
+     
         shootTimer = 0;
+        CreateFriendlyMissile();
     }
 }
 
