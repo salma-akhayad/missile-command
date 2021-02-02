@@ -1,11 +1,18 @@
 let player = null;
-let playerSpeed = 5;
+let gun = null;
+
+// how fast the player moves
+let playerSpeed = 10;
 let explosions = [];
+//how many milliseconds since last shot
 let shootTimer = 0;
 let explosionLife = 100;
 let shotsPerSecond = 4;
 let friendlyMissiles = [];
-let gun = null;
+
+let enemyShootTimer=0;
+let enemyShotsPerSencond=;
+
 
 
 function setup() {
@@ -17,6 +24,8 @@ function setup() {
 
     gun = createSprite(width / 2, height - 40, 20, 20)
 
+    emptyMissilesGroup
+
 }
 
 function draw() {
@@ -24,7 +33,9 @@ function draw() {
 
     MovePlayer();
     Shoot();
-    RemoveDeadExplosions()
+    RemoveDeadExplosions();
+
+    CreateEnemyMissile();
 
     drawSprites();
 }
@@ -41,10 +52,42 @@ function CreateFriendlyMissile() {
     let missile = createSprite(start.x, start.y, 5, 5);
     missile.setSpeed(5, directionAngle);
     missile["goal"] = end;
+
+    missile.draw = DrawFriendlyMissile;
+}
+
+function CreateEnemyMissile() {
+    let startx = random(0, width);
+    let start = createVector(startX, 0);
+    let endX = random(0, width);
+    let end = createVector(endX, 0);
+
+    let direction = player.position.copy();
+    direction.sub(start);
+
+    let directionAngle = direction.heading();
+
+    let missile = createSprite(start.x, start.y, 5, 5);
+    missile.setSpeed(5, directionAngle);
+    missile["goal"] = end;
+
     missile.draw = DrawFriendlyMissile;
 }
 
 function DrawFriendlyMissile() {
+    circle(0, 0, this.width);
+
+    let currentPosition = this.position;
+    let goalPosition = this.goal;
+    let distance = currentPosition.dist(goalPosition);
+
+    if (distance < 5) {
+        CreateExplosion(currentPosition.x, currentPosition.y);
+        this.remove();
+    }
+}
+
+function DrawEnemyMissile() {
     circle(0, 0, this.width);
 
     let currentPosition = this.position;
@@ -68,7 +111,7 @@ function RemoveDeadExplosions() {
 function Shoot() {
     shootTimer += deltaTime;
     if (keyIsDown(32) && shootTimer >= 1000 / shotsPerSecond) {
-     
+
         shootTimer = 0;
         CreateFriendlyMissile();
     }
