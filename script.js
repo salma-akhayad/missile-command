@@ -1,126 +1,183 @@
 let player = null;
 let gun = null;
+let enemyMissilesGroup = null;
+let city1 = null;
+let city2 = null;
+let points = 0;
+let timePoints = 0;
 
-// how fast the player moves
+// how fast the player can move
 let playerSpeed = 10;
-let explosions = [];
-//how many milliseconds since last shot
+// how many milliseconds since the players' last shot
 let shootTimer = 0;
-let explosionLife = 100;
+// how many shots a player can fire per second
 let shotsPerSecond = 4;
-let friendlyMissiles = [];
+// how fast the players' missiles will fly
+let missileSpeed = 5;
 
-let enemyShootTimer=0;
-let enemyShotsPerSencond=;
 
+// how many milliseconds since the enemy's last shot
+let enemyShootTimer = 0;
+// how many shots the enemy can fire per second
+let enemyShotsPerSecond = 1;
+// how many shots the enemy can fire per second
+let maxEnemyMissiles = 3;
+// how fast the enemy's missiles will fly
+let enemyMissileSpeed = 2;
+
+// how many frames an explosion will last
+let explosionLife = 100;
 
 
 function setup() {
-    createCanvas(400, 400);
     angleMode(DEGREES);
+    createCanvas(800, 500);
 
     player = createSprite(width / 2, height - 100, 20, 20);
     player.draw = DrawPlayer;
 
-    gun = createSprite(width / 2, height - 40, 20, 20)
+    gun = createSprite(width / 2, height - 50, 25, 25);
 
-    emptyMissilesGroup
+    enemyMissilesGroup = new Group();
 
+    city1 = createSprite(0 + 100, height - 10, 100, 20);
+    city1.draw = DrawCity;
+    city1["lifepoints"] = 3;
+
+    city2 = createSprite(width - 100, height - 10, 100, 20);
+    city2.draw = DrawCity;
+    city2["lifepoints"] = 3;
 }
 
 function draw() {
-    background(0, 0, 0);
+    background(0);
 
     MovePlayer();
     Shoot();
-    RemoveDeadExplosions();
 
-    CreateEnemyMissile();
+    EnemyShootsMissile();
+    ShowLifePoints();
+    ShowPlayerPoints();
+
+    AddTimePoints();
 
     drawSprites();
 }
 
-function CreateFriendlyMissile() {
-    let start = gun.position.copy();
-    let end = player.position.copy();
+function AddTimePoints() {
+    if (city1.lifepoints > 0 || city2.lifepoints > 0) {
+        timePoints = floor(millis() / 100);
+    }
+}
 
-    let direction = player.position.copy();
-    direction.sub(start);
+function ShowPlayerPoints() {
+    let pointsTotal = points + timePoints;
 
-    let directionAngle = direction.heading();
+    fill('white');
+    textSize(44);
+    text(pointsTotal.toString(), width / 2, 50);
+}
 
-    let missile = createSprite(start.x, start.y, 5, 5);
-    missile.setSpeed(5, directionAngle);
-    missile["goal"] = end;
+function ShowLifePoints() {
+    ShowLifePointsOfCity(city1);
+    ShowLifePointsOfCity(city2);
+}
+
+function ShowLifePointsOfCity(city) {
+    let cityLifePoints = city.lifepoints.toString();
+    cityLifePoints += "/3";
+
+    fill('white');
+    textSize(24);
+    text(cityLifePoints, city.position.x, city.position.y - 20);
+}
+
+function DrawCity() {
+    rect(0, 0, this.width, this.height);
+
+    this.overlap(enemyMissilesGroup, CityIsHit);
+}
+
+function CityIsHit(city, enemyMissile) {
+    city.lifepoints--;
+
+    CreateExplosion(enemyMissile.position.x, enemyMissile.position.y);
+
+    if (city.lifepoints <= 0) {
+        city.remove();
+    }
+
+    enemyMissile.remove();
+}
+
+function EnemyShootsMissile() { 
+    enemyShootTimer += deltaTime;
+    if (enemyMissilesGroup.length < maxEnemyMissiles &&
+        enemyShootTimer >= 1000 / enemyShotsPerSecond) {
+        CreateEnemyMissile();
+        enemyShootTimer = 0;
+    }
+}
+
+function CreateFriendlyMissile() { 
+    let startPosition = gun.position.copy();
+    let endPosition = player.position.copy();
+    let direction = p5.Vector.sub(endPosition, startPosition);
+
+    let missile = createSprite(startPosition.x, startPosition.y, 5, 5);
+    missile.setSpeed(missileSpeed, direction.heading());
+    missile["goal"] = endPosition;
 
     missile.draw = DrawFriendlyMissile;
 }
 
-function CreateEnemyMissile() {
-    let startx = random(0, width);
-    let start = createVector(startX, 0);
+function DrawFriendlyMissile() { 
+    circle(0, 0, this.width);
+
+    let distance = p5.Vector.dist(this.position, this.goal);
+    if (distance < 5) { 
+        this.remove();
+        CreateExplosion(this.goal.x, this.goal.y);
+    }
+}
+
+function CreateEnemyMissile() { 
+    let startX = random(0, width);
+    let startPosition = createVector(startX, 0);
     let endX = random(0, width);
-    let end = createVector(endX, 0);
+    let endPosition = createVector(endX, height);
+    let direction = p5.Vector.sub(endPosition, startPosition);
 
-    let direction = player.position.copy();
-    direction.sub(start);
+    let missile = createSprite(startPosition.x, startPosition.y, 5, 5);
+    missile.setSpeed(enemyMissileSpeed, direction.heading());
+    missile["goal"] = endPosition;
 
-    let directionAngle = direction.heading();
+    enemyMissilesGroup.add(missile);
 
-    let missile = createSprite(start.x, start.y, 5, 5);
-    missile.setSpeed(5, directionAngle);
-    missile["goal"] = end;
-
-    missile.draw = DrawFriendlyMissile;
+    missile.draw = DrawEnemyMissile;
 }
 
-function DrawFriendlyMissile() {
+function DrawEnemyMissile() { 
+    fill(255, 0, 0);
     circle(0, 0, this.width);
 
-    let currentPosition = this.position;
-    let goalPosition = this.goal;
-    let distance = currentPosition.dist(goalPosition);
-
-    if (distance < 5) {
-        CreateExplosion(currentPosition.x, currentPosition.y);
+    let distance = p5.Vector.dist(this.position, this.goal);
+    if (distance < 5) { 
         this.remove();
-    }
-}
-
-function DrawEnemyMissile() {
-    circle(0, 0, this.width);
-
-    let currentPosition = this.position;
-    let goalPosition = this.goal;
-    let distance = currentPosition.dist(goalPosition);
-
-    if (distance < 5) {
-        CreateExplosion(currentPosition.x, currentPosition.y);
-        this.remove();
-    }
-}
-
-function RemoveDeadExplosions() {
-    //kijk na of er nog explosies in de lkijst zitten
-    //EN kijk na of de 1ste explosie in de lijst klaar is (life is gelijk aan 0)
-    if (explosions.lenght > 0 && explosions[0].life == 0) {
-        explosions.shift() //shift() verwijdert het 1STE item uit de lijst
     }
 }
 
 function Shoot() {
     shootTimer += deltaTime;
     if (keyIsDown(32) && shootTimer >= 1000 / shotsPerSecond) {
-
-        shootTimer = 0;
         CreateFriendlyMissile();
+        shootTimer = 0;
     }
 }
 
 function CreateExplosion(x, y) {
-    let explosion = createSprite(x, y, 5, 5);
-    explosion.life = 100;
-    explosions.push(explosion);
+    let explosion = createSprite(x, y, 1, 1);
+    explosion.life = explosionLife;
     explosion.draw = DrawExplosion;
 }
 
@@ -128,6 +185,19 @@ function DrawExplosion() {
     circle(0, 0, this.width);
     this.width++;
     this.height++;
+
+    this.overlap(enemyMissilesGroup, EnemyMissileIsHit);
+}
+
+function EnemyMissileIsHit(explosion, enemyMissile) { 
+    enemyMissile.remove();
+    GainPoints(100);
+}
+
+function GainPoints(amount) {
+    if (city1.lifepoints > 0 || city2.lifepoints > 0) {
+        points += amount;
+    }
 }
 
 function DrawPlayer() {
@@ -140,32 +210,20 @@ function DrawPlayer() {
     line(0, -5, 0, -20);
     line(5, 0, 20, 0);
     line(-5, 0, -20, 0);
-
-    /*
-    line(0, 0, 0, 50);
-    line(0, 50, -10, 70);
-    line(0, 50, 10, 70);
-
-    line(0, 25, -20, 10);
-    line(0, 25, 20, 30);
-
-    rect(25, 50, 30, 20, 5);*/
 }
 
 function MovePlayer() {
     if (keyIsDown(DOWN_ARROW)) {
         player.position.y += playerSpeed;
     }
-
     if (keyIsDown(UP_ARROW)) {
         player.position.y -= playerSpeed;
     }
 
-    if (keyIsDown(RIGHT_ARROW)) {
-        player.position.x += playerSpeed;
-    }
-
     if (keyIsDown(LEFT_ARROW)) {
         player.position.x -= playerSpeed;
+    }
+    if (keyIsDown(RIGHT_ARROW)) {
+        player.position.x += playerSpeed;
     }
 }
